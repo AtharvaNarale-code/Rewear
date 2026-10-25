@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel{% endblock %}
+{% block content %}
+<div class="container admin">
+  <div class="dash-head">
+    <div><h1>Admin panel</h1><p class="muted">Verify listings, manage members and keep the community healthy.</p></div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat"><small>Total users</small><strong>{{ stats.users }}</strong></div>
+    <div class="stat"><small>Total listings</small><strong>{{ stats.listings }}</strong></div>
+    <div class="stat {{ 'hot' if stats.pending }}"><small>Pending approvals</small><strong>{{ stats.pending }}</strong></div>
+    <div class="stat"><small>Swaps completed</small><strong>{{ stats.swaps }}</strong></div>
+  </div>
+
+  <section id="queue">
+    <h2>Verification queue <span class="count {{ 'alert' if pending }}">{{ pending|length }}</span></h2>
+    {% if pending %}
+    <div class="queue">
+      {% for item in pending %}
+      <article class="queue-card">
+        <img src="{{ item.image }}" alt="{{ item.title }}" onerror="this.onerror=null;this.src='{{ item.fallback_image }}'">
+        <div class="q-body">
+          <div class="badge-row"><span class="badge size">Size {{ item.size }}</span><span class="badge cond cond-{{ item.condition|lower|replace(' ', '-') }}">{{ item.condition }}</span></div>
+          <h3>{{ item.title }}</h3>
+          <div class="info-cat">{{ item.gender_category }} · {{ item.clothing_type }} · listed {{ item.created_at|dt }}</div>
+          <p>{{ item.description or 'No description.' }}</p>
+          <p class="muted">By <strong>{{ item.uploader.name }}</strong> ({{ item.uploader.email }})
+            {% if item.tag_list %} · {% for t in item.tag_list %}#{{ t }} {% endfor %}{% endif %}</p>
+          <div class="q-actions">
+            <div class="inline-input">
+              <label class="sr-only" for="pts-{{ item.id }}">Points</label>
+              <span>🪙</span>
+              <input type="number" id="pts-{{ item.id }}" value="{{ item.point_value }}" min="1" max="1000">
+              <button class="btn btn-outline btn-sm" data-api="{{ url_for('api_admin_item', item_id=item.id, action='points') }}"
+                      data-input="#pts-{{ item.id }}" data-key="points" data-noreload>Adjust points</button>
+            </div>
+            <button class="btn btn-primary btn-sm" data-api="{{ url_for('api_admin_item', item_id=item.id, action='approve') }}">Approve</button>
+            <button class="btn btn-danger btn-sm" data-api="{{ url_for('api_admin_item', item_id=item.id, action='reject') }}" data-confirm="Reject “{{ item.title }}”?">Reject</button>
+            <a class="btn btn-ghost btn-sm" href="{{ url_for('item_detail', item_id=item.id) }}">Preview</a>
+          </div>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state small"><div class="es-ico">✅</div><p>All caught up — nothing waiting for review.</p></div>
+    {% endif %}
+  </section>
+
+  <section id="users">
+    <h2>Users</h2>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th class="num">Balance</th><th>Adjust balance</th><th></th></tr></thead>
+        <tbody>
+        {% for u in users %}
+          <tr>
+            <td>{{ u.id }}</td>
+            <td><strong>{{ u.name }}</strong></td>
+            <td>{{ u.email }}</td>
+            <td>{{ 'Admin' if u.is_admin else 'Member' }}</td>
+            <td><span class="status {{ 's-completed' if u.is_active else 's-rejected' }}">{{ 'Active' if u.is_active else 'Suspended' }}</span></td>
+            <td class="num">🪙 {{ u.points_balance }}</td>
+            <td>
+              <div class="inline-input">
+                <input type="number" id="bal-{{ u.id }}" placeholder="±pts" aria-label="Points to add or deduct for {{ u.name }}">
+                <button class="btn btn-outline btn-sm" data-api="{{ url_for('api_admin_user', user_id=u.id, action='balance') }}" data-input="#bal-{{ u.id }}" data-key="delta">Apply</button>
+              </div>
+            </td>
+            <td>
+              {% if u.id != g.user.id %}
+              <button class="btn btn-ghost btn-sm" data-api="{{ url_for('api_admin_user', user_id=u.id, action='toggle') }}"
+                      data-confirm="{{ 'Suspend' if u.is_active else 'Reactivate' }} {{ u.name }}?">{{ 'Suspend' if u.is_active else 'Reactivate' }}</button>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="activity">
+    <h2>Recent activity</h2>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Date</th><th>Type</th><th>Item</th><th>Buyer → Seller</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for t in recent %}
+          <tr>
+            <td>{{ t.created_at|dt }}</td>
+            <td>{{ 'Redemption' if t.type == 'redeem' else 'Swap' }}</td>
+            <td>{{ t.item.title }}</td>
+            <td>{{ t.buyer.name }} → {{ t.seller.name }}</td>
+            <td><span class="status s-{{ t.status }}">{{ t.status|capitalize }}</span></td>
+          </tr>
+        {% else %}<tr><td colspan="5" class="muted">No activity yet.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

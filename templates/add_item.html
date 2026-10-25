@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+{% block title %}List an Item{% endblock %}
+{% block content %}
+<div class="container add-wrap">
+  <div class="add-head">
+    <h1>List an item</h1>
+    <p class="muted">Three quick steps. {{ 'Admin listings go live immediately.' if g.user.is_admin else "An admin reviews every listing before it appears in the catalog." }}</p>
+  </div>
+
+  <ol class="stepper" id="stepper" aria-label="Progress">
+    <li class="active" data-step-ind="1" aria-current="step"><span>1</span> Photo</li>
+    <li data-step-ind="2"><span>2</span> Details</li>
+    <li data-step-ind="3"><span>3</span> Points</li>
+  </ol>
+
+  <div class="add-grid">
+    <form method="post" action="{{ url_for('add_item') }}" id="add-form" class="add-form" enctype="multipart/form-data" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <!-- STEP 1: PHOTO -->
+      <section class="card form-card step-panel active" data-step="1">
+        <h2>1 · Add a photo</h2>
+        <p class="muted">Choose a photo of your clothing item from your phone or computer. A clear, well-lit photo helps people decide.</p>
+
+        <div class="field">
+          <span class="upload-label">Clothing photo <small>(optional)</small></span>
+          <label class="upload-area" id="upload-area" for="f-image" tabindex="0" role="button" aria-label="Choose a clothing photo">
+            <img id="upload-preview" alt="Selected clothing photo preview" hidden>
+            <div class="upload-prompt" id="upload-prompt">
+              <span class="upload-icon" aria-hidden="true">＋</span>
+              <strong>Choose a photo</strong>
+              <span>Click to browse or drag and drop an image here</span>
+              <small>JPG, PNG, WEBP or GIF · Maximum 5 MB</small>
+            </div>
+            <input type="file" name="image" id="f-image" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" hidden>
+          </label>
+          <div class="upload-actions">
+            <p class="upload-status muted" id="upload-status" aria-live="polite">No photo selected. A clothing illustration will be used if you continue without one.</p>
+            <button type="button" class="btn btn-ghost" id="remove-image" hidden>Remove photo</button>
+          </div>
+          <p class="upload-error" id="image-error" role="alert" hidden></p>
+        </div>
+
+        <div class="img-preview" id="img-preview" aria-live="polite">
+          <span id="preview-placeholder">Your selected photo will appear here</span>
+          <img id="step-preview-image" alt="Preview of the photo you selected" hidden>
+        </div>
+      </section>
+
+      <!-- STEP 2: DETAILS -->
+      <section class="card form-card step-panel" data-step="2" hidden>
+        <h2>2 · Item details</h2>
+        <label class="field"><span>Title</span>
+          <input type="text" name="title" id="f-title" maxlength="120" required placeholder="e.g. Classic Denim Jacket" value="{{ form.get('title', '') }}">
+        </label>
+        <label class="field"><span>Description</span>
+          <textarea name="description" rows="4" placeholder="Fit, fabric, colour, and any flaws…">{{ form.get('description', '') }}</textarea>
+        </label>
+        <div class="field-row">
+          <label class="field"><span>Gender category</span>
+            <select name="gender_category" id="f-gender" required>
+              <option value="">Select…</option>
+              {% for g_ in GENDERS %}<option value="{{ g_ }}" {{ 'selected' if form.get('gender_category') == g_ else '' }}>{{ g_ }}</option>{% endfor %}
+            </select>
+          </label>
+          <label class="field"><span>Type</span>
+            <select name="clothing_type" id="f-type" required>
+              <option value="">Select…</option>
+              {% for t in TYPES %}<option value="{{ t }}" {{ 'selected' if form.get('clothing_type') == t else '' }}>{{ t }}</option>{% endfor %}
+            </select>
+          </label>
+        </div>
+        <div class="field-row">
+          <label class="field"><span>Size</span>
+            <select name="size" id="f-size" required>
+              <option value="">Select…</option>
+              {% for group, sizes in SIZE_GROUPS.items() %}
+              <optgroup label="{{ group }}">{% for s in sizes %}<option value="{{ s }}" {{ 'selected' if form.get('size') == s else '' }}>{{ s }}</option>{% endfor %}</optgroup>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field"><span>Condition</span>
+            <select name="condition" id="f-cond" required>
+              <option value="">Select…</option>
+              {% for c in CONDITIONS %}<option value="{{ c }}" {{ 'selected' if form.get('condition') == c else '' }}>{{ c }}</option>{% endfor %}
+            </select>
+          </label>
+        </div>
+        <label class="field"><span>Tags <small>(comma-separated)</small></span>
+          <input type="text" name="tags" placeholder="denim, jacket, casual" value="{{ form.get('tags', '') }}">
+        </label>
+      </section>
+
+      <!-- STEP 3: POINTS -->
+      <section class="card form-card step-panel" data-step="3" hidden>
+        <h2>3 · Requested points</h2>
+        <p class="muted">What should someone pay to redeem this? Choose a fair value based on the item's brand, condition, and quality.</p>
+        <label class="field"><span>Points 🪙</span>
+          <input type="number" name="point_value" id="f-points" min="1" max="1000" required placeholder="e.g. 45" value="{{ form.get('point_value', '') }}">
+        </label>
+        <p class="suggest" id="suggest" hidden></p>
+        <h3 class="review-heading">Review your listing</h3>
+        <ul class="review" id="review"></ul>
+      </section>
+
+      <div class="form-nav">
+        <button type="button" class="btn btn-ghost" id="prev-step" hidden>← Back</button>
+        <span class="nav-spacer"></span>
+        <button type="button" class="btn btn-primary" id="next-step">Continue →</button>
+        <button type="submit" class="btn btn-primary" id="submit-btn" hidden>{{ 'Publish item' if g.user.is_admin else 'Submit for review' }}</button>
+      </div>
+    </form>
+
+    <aside class="preview-col">
+      <h3>Live preview</h3>
+      <article class="card item-card preview-card" id="preview-card">
+        <div class="card-media">
+          <img id="pv-img" src="/img/upperwear/6B8F71.svg" alt="Clothing item preview">
+          <span class="badge cond" id="pv-cond">Condition</span>
+          <span class="badge size" id="pv-size">Size</span>
+        </div>
+        <div class="card-body">
+          <div class="card-cat" id="pv-cat">Gender · Type</div>
+          <h3 class="card-title" id="pv-title">Your item title</h3>
+          <div class="card-foot"><span class="price">🪙 <span id="pv-points">—</span> <small>Pts</small></span><span class="owner">{{ g.user.name.split()[0] }}</span></div>
+        </div>
+      </article>
+    </aside>
+  </div>
+</div>
+
+<style>
+/* Page-local upload styling; the rest uses the existing ReWear design system. */
+.add-grid { align-items: start; }
+.upload-label { display:block; font-weight:600; margin-bottom:10px; }
+.upload-label small { color:var(--muted, #6f7b86); font-weight:400; }
+.upload-area {
+  position:relative; display:flex; align-items:center; justify-content:center;
+  min-height:210px; padding:24px; overflow:hidden; text-align:center;
+  background:#eef4ec; border:2px dashed #bfd0ba; border-radius:14px;
+  cursor:pointer; transition:background .18s ease,border-color .18s ease;
+}
+.upload-area:hover,.upload-area:focus-visible,.upload-area.dragging { background:#e5efe2; border-color:#2d5a27; outline:none; }
+.upload-prompt { display:flex; flex-direction:column; align-items:center; gap:9px; color:#536579; }
+.upload-prompt strong { color:#26352b; font-size:1.05rem; }
+.upload-prompt small { font-size:.82rem; }
+.upload-icon { display:grid; place-items:center; width:42px; height:42px; border-radius:50%; background:#2d5a27; color:#fff; font-size:1.8rem; line-height:1; }
+#upload-preview { max-width:100%; max-height:300px; object-fit:contain; border-radius:10px; }
+.upload-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:10px; }
+.upload-status { margin:0; font-size:.88rem; }
+.upload-error { margin:8px 0 0; color:#b42318; font-size:.9rem; }
+.img-preview { min-height:140px; margin-top:16px; padding:12px; display:flex; align-items:center; justify-content:center; overflow:hidden; text-align:center; color:#66798c; background:#eef4ec; border:1px dashed #cbd9c6; border-radius:14px; }
+#step-preview-image { max-width:100%; max-height:220px; object-fit:contain; border-radius:8px; }
+.form-nav { display:flex; align-items:center; gap:10px; margin-top:18px; }
+.nav-spacer { flex:1; }
+.step-panel[hidden], [hidden] { display:none !important; }
+.review-heading { margin-top:22px; }
+.preview-card .card-media { position:relative; }
+.preview-card #pv-img { width:100%; height:100%; object-fit:cover; }
+@media (max-width:760px) {
+  .add-grid { grid-template-columns:minmax(0,1fr); }
+  .preview-col { order:-1; }
+  .upload-area { min-height:175px; }
+  .field-row { grid-template-columns:minmax(0,1fr); }
+}
+</style>
+
+<script>
+(() => {
+  const form = document.getElementById('add-form');
+  if (!form) return;
+
+  const fileInput = document.getElementById('f-image');
+  const uploadArea = document.getElementById('upload-area');
+  const uploadPreview = document.getElementById('upload-preview');
+  const stepPreviewImage = document.getElementById('step-preview-image');
+  const previewPlaceholder = document.getElementById('preview-placeholder');
+  const uploadPrompt = document.getElementById('upload-prompt');
+  const uploadStatus = document.getElementById('upload-status');
+  const imageError = document.getElementById('image-error');
+  const removeImage = document.getElementById('remove-image');
+  const liveImage = document.getElementById('pv-img');
+  const fallbackImage = liveImage.src;
+  const panels = [...document.querySelectorAll('.step-panel')];
+  const indicators = [...document.querySelectorAll('[data-step-ind]')];
+  const prevButton = document.getElementById('prev-step');
+  const nextButton = document.getElementById('next-step');
+  const submitButton = document.getElementById('submit-btn');
+  let currentStep = 1;
+  let objectUrl = null;
+  let selectedImageDataUrl = null;
+
+  const byId = id => document.getElementById(id);
+  const value = id => (byId(id)?.value || '').trim();
+
+  function clearObjectUrl() {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    objectUrl = null;
+    selectedImageDataUrl = null;
+  }
+
+  function clearImage() {
+    clearObjectUrl();
+    uploadPreview.removeAttribute('src');
+    stepPreviewImage.removeAttribute('src');
+    uploadPreview.hidden = true;
+    stepPreviewImage.hidden = true;
+    previewPlaceholder.hidden = false;
+    uploadPrompt.hidden = false;
+    liveImage.src = fallbackImage;
+    removeImage.hidden = true;
+    uploadStatus.textContent = 'No photo selected. A clothing illustration will be used if you continue without one.';
+  }
+
+  function acceptFile(file) {
+    imageError.hidden = true;
+    imageError.textContent = '';
+    if (!file) return;
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedExtensions = /\.(jpe?g|png|webp|gif)$/i;
+    if (!(allowedTypes.includes(file.type) || (!file.type && allowedExtensions.test(file.name)))) {
+      fileInput.value = '';
+      clearImage();
+      imageError.textContent = 'Please choose a JPG, PNG, WEBP or GIF image.';
+      imageError.hidden = false;
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      fileInput.value = '';
+      clearImage();
+      imageError.textContent = 'This image is larger than 5 MB. Please choose a smaller file.';
+      imageError.hidden = false;
+      return;
+    }
+    clearObjectUrl();
+    // Use one FileReader data URL for all previews. This avoids blob-URL
+    // conflicts with global image fallback handlers elsewhere in the app.
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (fileInput.files[0] !== file) return;
+      selectedImageDataUrl = String(reader.result || '');
+      if (!selectedImageDataUrl.startsWith('data:image/')) {
+        fileInput.value = '';
+        clearImage();
+        imageError.textContent = 'This image could not be previewed. Please choose another image.';
+        imageError.hidden = false;
+        return;
+      }
+      [uploadPreview, stepPreviewImage, liveImage].forEach(img => {
+        img.onerror = () => {
+          img.onerror = null;
+          imageError.textContent = 'This image could not be previewed. Please choose another image.';
+          imageError.hidden = false;
+        };
+        img.src = selectedImageDataUrl;
+      });
+      uploadPreview.hidden = false;
+      stepPreviewImage.hidden = false;
+      previewPlaceholder.hidden = true;
+      uploadPrompt.hidden = true;
+      removeImage.hidden = false;
+      uploadStatus.textContent = `${file.name} · ${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+    };
+    reader.onerror = () => {
+      fileInput.value = '';
+      clearImage();
+      imageError.textContent = 'The browser could not read this file. Please try another photo.';
+      imageError.hidden = false;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  fileInput.addEventListener('change', () => acceptFile(fileInput.files[0]));
+  removeImage.addEventListener('click', () => {
+    fileInput.value = '';
+    imageError.hidden = true;
+    clearImage();
+  });
+  uploadArea.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      fileInput.click();
+    }
+  });
+  ['dragenter', 'dragover'].forEach(type => uploadArea.addEventListener(type, event => {
+    event.preventDefault(); uploadArea.classList.add('dragging');
+  }));
+  ['dragleave', 'drop'].forEach(type => uploadArea.addEventListener(type, event => {
+    event.preventDefault(); uploadArea.classList.remove('dragging');
+  }));
+  uploadArea.addEventListener('drop', event => {
+    const file = event.dataTransfer?.files?.[0];
+    if (!file) return;
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    fileInput.files = transfer.files;
+    acceptFile(file);
+  });
+
+  function updateLivePreview() {
+    byId('pv-title').textContent = value('f-title') || 'Your item title';
+    byId('pv-cat').textContent = `${value('f-gender') || 'Gender'} · ${value('f-type') || 'Type'}`;
+    byId('pv-cond').textContent = value('f-cond') || 'Condition';
+    byId('pv-size').textContent = value('f-size') || 'Size';
+    byId('pv-points').textContent = value('f-points') || '—';
+    const type = (value('f-type') || 'Upperwear').toLowerCase();
+    if (fileInput.files.length && selectedImageDataUrl) {
+      liveImage.src = selectedImageDataUrl;
+    } else {
+      liveImage.src = `/img/${['upperwear','lowerwear','footwear','accessories'].includes(type) ? type : 'upperwear'}/6B8F71.svg`;
+    }
+  }
+  ['f-title','f-gender','f-type','f-size','f-cond','f-points'].forEach(id => {
+    byId(id)?.addEventListener('input', updateLivePreview);
+    byId(id)?.addEventListener('change', updateLivePreview);
+  });
+
+  function validStep(step) {
+    let ids = [];
+    if (step === 2) ids = ['f-title', 'f-gender', 'f-type', 'f-size', 'f-cond'];
+    if (step === 3) ids = ['f-points'];
+    for (const id of ids) {
+      const el = byId(id);
+      if (!el.checkValidity()) {
+        el.reportValidity();
+        el.focus();
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function updateReview() {
+    const rows = [
+      ['Photo', fileInput.files[0]?.name || 'Illustration placeholder'],
+      ['Title', value('f-title') || 'Not entered'],
+      ['Category', `${value('f-gender') || '—'} · ${value('f-type') || '—'}`],
+      ['Size', value('f-size') || '—'],
+      ['Condition', value('f-cond') || '—'],
+      ['Points', value('f-points') ? `${value('f-points')} pts` : 'Not entered']
+    ];
+    byId('review').replaceChildren(...rows.map(([label, text]) => {
+      const li = document.createElement('li');
+      const strong = document.createElement('strong');
+      strong.textContent = `${label}: `;
+      li.append(strong, document.createTextNode(text));
+      return li;
+    }));
+  }
+
+  function showStep(step) {
+    currentStep = step;
+    panels.forEach(panel => {
+      const active = Number(panel.dataset.step) === step;
+      panel.hidden = !active;
+      panel.classList.toggle('active', active);
+    });
+    indicators.forEach(indicator => {
+      const number = Number(indicator.dataset.stepInd);
+      indicator.classList.toggle('active', number === step);
+      indicator.classList.toggle('completed', number < step);
+      if (number === step) indicator.setAttribute('aria-current', 'step');
+      else indicator.removeAttribute('aria-current');
+    });
+    prevButton.hidden = step === 1;
+    nextButton.hidden = step === 3;
+    submitButton.hidden = step !== 3;
+    if (step === 3) updateReview();
+  }
+
+  nextButton.addEventListener('click', () => {
+    if (currentStep === 1) showStep(2);
+    else if (currentStep === 2 && validStep(2)) showStep(3);
+  });
+  prevButton.addEventListener('click', () => showStep(Math.max(1, currentStep - 1)));
+  form.addEventListener('submit', event => {
+    if (!validStep(2) || !validStep(3)) {
+      event.preventDefault();
+      showStep(!validStep(2) ? 2 : 3);
+    }
+  });
+
+  updateLivePreview();
+  showStep(1);
+})();
+</script>
+{% endblock %}

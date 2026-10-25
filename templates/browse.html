@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Browse{% if f.gender %} {{ f.gender }}{% endif %}{% endblock %}
+{% block content %}
+<div class="container browse">
+  <div class="browse-top">
+    <div>
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="{{ url_for('index') }}">Home</a> / <span>Browse</span>{% if f.gender %} / <span>{{ f.gender }}</span>{% endif %}{% if f.type %} / <span>{{ f.type }}</span>{% endif %}</nav>
+      <h1>{{ f.gender or 'All' }}{% if f.type %} · {{ f.type }}{% endif %}</h1>
+      <p class="muted">{{ pagination.total }} item{{ '' if pagination.total == 1 else 's' }} available</p>
+    </div>
+    <div class="browse-tools">
+      <button type="button" class="btn btn-outline btn-sm filters-toggle" data-toggle-filters>Filters</button>
+      <form method="get" id="sort-form">
+        {% for k, v in request.args.items() if k not in ('sort', 'page') %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+        <label class="sr-only" for="sort">Sort</label>
+        <select id="sort" name="sort" class="select" onchange="this.form.submit()">
+          <option value="newest" {{ 'selected' if f.sort == 'newest' }}>Newest first</option>
+          <option value="points_asc" {{ 'selected' if f.sort == 'points_asc' }}>Points: low to high</option>
+          <option value="points_desc" {{ 'selected' if f.sort == 'points_desc' }}>Points: high to low</option>
+        </select>
+      </form>
+    </div>
+  </div>
+
+  {% if chips %}
+  <div class="chips">
+    {% for label, href in chips %}<a class="chip" href="{{ href }}">{{ label }} <span aria-hidden="true">×</span></a>{% endfor %}
+    <a class="chip-clear" href="{{ url_for('browse') }}">Clear all</a>
+  </div>
+  {% endif %}
+
+  <div class="browse-grid">
+    <aside class="filters" id="filters">
+      <form method="get" action="{{ url_for('browse') }}" data-autosubmit>
+        {% if f.q %}<input type="hidden" name="q" value="{{ f.q }}">{% endif %}
+        {% if f.sort != 'newest' %}<input type="hidden" name="sort" value="{{ f.sort }}">{% endif %}
+        {% if f.points %}<input type="hidden" name="points" value="{{ f.points }}">{% endif %}
+
+        <fieldset>
+          <legend>Gender</legend>
+          <label class="opt"><input type="radio" name="gender" value="" {{ 'checked' if not f.gender }}> All</label>
+          {% for g_ in GENDERS %}<label class="opt"><input type="radio" name="gender" value="{{ g_ }}" {{ 'checked' if f.gender == g_ }}> {{ g_ }}</label>{% endfor %}
+        </fieldset>
+
+        <fieldset>
+          <legend>Sub-category</legend>
+          <label class="opt"><input type="radio" name="type" value="" {{ 'checked' if not f.type }}> All</label>
+          {% for t in TYPES %}<label class="opt"><input type="radio" name="type" value="{{ t }}" {{ 'checked' if f.type == t }}> {{ t }}</label>{% endfor %}
+        </fieldset>
+
+        <fieldset>
+          <legend>Size</legend>
+          <div class="size-grid">
+            <label class="size-chip"><input type="radio" name="size" value="" {{ 'checked' if not f.size }}><span>Any</span></label>
+            {% for s in sizes %}<label class="size-chip"><input type="radio" name="size" value="{{ s }}" {{ 'checked' if f.size == s }}><span>{{ s }}</span></label>{% endfor %}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Condition</legend>
+          <label class="opt"><input type="radio" name="condition" value="" {{ 'checked' if not f.condition }}> Any</label>
+          {% for c in CONDITIONS %}<label class="opt"><input type="radio" name="condition" value="{{ c }}" {{ 'checked' if f.condition == c }}> {{ c }}</label>{% endfor %}
+        </fieldset>
+
+        <fieldset>
+          <legend>Max points: <output id="max-out">{{ f.max_points }}</output> 🪙</legend>
+          <input type="range" name="max_points" min="10" max="{{ ceiling }}" step="5" value="{{ f.max_points }}"
+                 oninput="document.getElementById('max-out').textContent=this.value" aria-label="Maximum points">
+        </fieldset>
+
+        <div class="filter-actions">
+          <button class="btn btn-primary btn-block" type="submit">Apply filters</button>
+          <a class="btn btn-ghost btn-block" href="{{ url_for('browse') }}">Reset</a>
+        </div>
+      </form>
+    </aside>
+
+    <section class="results">
+      {% if items %}
+      <div class="grid-4">
+        {% for item in items %}{% include "_item_card.html" %}{% endfor %}
+      </div>
+      {% if pagination.pages > 1 %}
+      <nav class="pager" aria-label="Pagination">
+        {% set base_args = request.args.to_dict() %}
+        {% if pagination.has_prev %}<a class="pg" href="{{ url_for('browse', **dict(base_args, page=pagination.prev_num)) }}">‹ Prev</a>{% endif %}
+        {% for p in range(1, pagination.pages + 1) %}
+          <a class="pg {{ 'cur' if p == pagination.page }}" href="{{ url_for('browse', **dict(base_args, page=p)) }}">{{ p }}</a>
+        {% endfor %}
+        {% if pagination.has_next %}<a class="pg" href="{{ url_for('browse', **dict(base_args, page=pagination.next_num)) }}">Next ›</a>{% endif %}
+      </nav>
+      {% endif %}
+      {% else %}
+      <div class="empty-state">
+        <div class="es-ico">🧺</div>
+        <h3>Nothing matches those filters</h3>
+        <p class="muted">Try widening your search, or be the first to list something like it.</p>
+        <a class="btn btn-primary" href="{{ url_for('browse') }}">Clear filters</a>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

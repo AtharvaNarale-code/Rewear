@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}My Dashboard{% endblock %}
+
+{% macro tx_card(t, mode) %}
+  {% set other = t.seller if mode == 'out' else t.buyer %}
+  <article class="tx-card">
+    <a class="tx-thumb" href="{{ url_for('item_detail', item_id=t.item.id) }}"><img src="{{ t.item.image }}" alt="" onerror="this.onerror=null;this.src='{{ t.item.fallback_image }}'"></a>
+    <div class="tx-main">
+      <div class="tx-top">
+        <span class="badge type-{{ t.type }}">{{ 'Redemption' if t.type == 'redeem' else 'Direct swap' }}</span>
+        <span class="status s-{{ t.status }}">{{ t.status|capitalize }}</span>
+      </div>
+      <h4><a href="{{ url_for('item_detail', item_id=t.item.id) }}">{{ t.item.title }}</a></h4>
+      <p class="tx-meta">
+        {% if mode == 'out' %}Requested from <strong>{{ other.name }}</strong>{% else %}Requested by <strong>{{ other.name }}</strong>{% endif %}
+        · {{ t.created_at|dt }}
+      </p>
+      {% if t.type == 'redeem' %}
+        <p class="tx-detail">🪙 {{ t.points_spent }} pts {{ 'held in escrow' if t.status in ('pending', 'accepted') else ('paid' if t.status == 'completed' else 'refunded') }}</p>
+      {% else %}
+        <p class="tx-detail">🔁 {{ 'You offered' if mode == 'out' else 'They offered' }}:
+          <a href="{{ url_for('item_detail', item_id=t.offered_item.id) }}">{{ t.offered_item.title }}</a> (size {{ t.offered_item.size }})</p>
+      {% endif %}
+    </div>
+    <div class="tx-actions">
+      {% if mode == 'in' and t.status == 'pending' %}
+        <button class="btn btn-primary btn-sm" data-api="{{ url_for('api_transaction', tx_id=t.id, action='accept') }}">Accept</button>
+        <button class="btn btn-ghost btn-sm" data-api="{{ url_for('api_transaction', tx_id=t.id, action='decline') }}" data-confirm="Decline this request?">Decline</button>
+      {% elif mode == 'in' and t.status == 'accepted' %}
+        <span class="hint">Waiting for {{ other.name.split()[0] }} to confirm receipt</span>
+      {% elif mode == 'out' and t.status == 'accepted' %}
+        <button class="btn btn-primary btn-sm" data-api="{{ url_for('api_transaction', tx_id=t.id, action='confirm') }}" data-confirm="Confirm the exchange is complete?">Confirm received</button>
+        <button class="btn btn-ghost btn-sm" data-api="{{ url_for('api_transaction', tx_id=t.id, action='cancel') }}" data-confirm="Cancel this request?">Cancel</button>
+      {% elif mode == 'out' and t.status == 'pending' %}
+        <span class="hint">Waiting for {{ other.name.split()[0] }} to accept</span>
+        <button class="btn btn-ghost btn-sm" data-api="{{ url_for('api_transaction', tx_id=t.id, action='cancel') }}" data-confirm="Cancel this request?">Cancel</button>
+      {% endif %}
+    </div>
+  </article>
+{% endmacro %}
+
+{% macro mini_item(item) %}
+  <article class="mini-item">
+    <a href="{{ url_for('item_detail', item_id=item.id) }}"><img src="{{ item.image }}" alt="" onerror="this.onerror=null;this.src='{{ item.fallback_image }}'"></a>
+    <div>
+      <a class="mi-title" href="{{ url_for('item_detail', item_id=item.id) }}">{{ item.title }}</a>
+      <small>{{ item.gender_category }} · {{ item.clothing_type }} · {{ item.size }}</small>
+      <div class="mi-foot"><span class="price sm">🪙 {{ item.point_value }}</span><span class="status s-{{ item.status }}">{{ item.status|capitalize }}</span></div>
+    </div>
+  </article>
+{% endmacro %}
+
+{% block content %}
+<div class="container dash">
+  <div class="dash-head">
+    <div>
+      <h1>Hi, {{ g.user.name.split()[0] }} 👋</h1>
+      <p class="muted">Manage your listings, points and exchanges.</p>
+    </div>
+    <div class="balance-card">
+      <small>Point balance</small>
+      <strong>🪙 {{ g.user.points_balance }}</strong>
+      <a href="{{ url_for('browse') }}">Spend points →</a>
+    </div>
+  </div>
+
+  <div data-tabs data-initial="{{ tab }}">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="overview">Overview &amp; Points</button>
+      <button class="tab" role="tab" data-tab="items">My Listed Items <span class="count">{{ stats.listed }}</span></button>
+      <button class="tab" role="tab" data-tab="swaps">Swaps &amp; Redemptions {% if stats.awaiting %}<span class="count alert">{{ stats.awaiting }}</span>{% endif %}</button>
+    </div>
+
+    <!-- Overview -->
+    <section class="tab-panel" data-panel="overview">
+      <div class="stat-row">
+        <div class="stat"><small>Balance</small><strong>🪙 {{ g.user.points_balance }}</strong></div>
+        <div class="stat"><small>Items listed</small><strong>{{ stats.listed }}</strong></div>
+        <div class="stat"><small>Active requests</small><strong>{{ stats.active }}</strong></div>
+        <div class="stat"><small>Completed</small><strong>{{ stats.completed }}</strong></div>
+      </div>
+      <h3>Point history</h3>
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Date</th><th>Activity</th><th>Status</th><th class="num">Points</th></tr></thead>
+          <tbody>
+          {% for r in history %}
+            <tr>
+              <td>{{ r.date|dt }}</td>
+              <td>{{ r.label }}</td>
+              <td class="muted">{{ r.note or '—' }}</td>
+              <td class="num {{ 'pos' if r.delta > 0 else ('neg' if r.delta < 0 else '') }} {{ 'dim' if r.pending }}">
+                {{ ('+' ~ r.delta) if r.delta > 0 else r.delta }}{{ ' (pending)' if r.pending }}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Items -->
+    <section class="tab-panel" data-panel="items">
+      <div class="panel-head"><h3>My listings</h3><a class="btn btn-primary btn-sm" href="{{ url_for('add_item') }}">+ List an item</a></div>
+      {% for key, title, hint in [('pending', 'Pending review', 'Awaiting admin approval.'), ('approved', 'Approved', 'Live on the catalog (or reserved by a request).'), ('sold', 'Sold / exchanged', 'These have found new homes.'), ('rejected', 'Not approved', '')] %}
+        {% if groups[key] %}
+        <h4 class="group-title">{{ title }} <span class="count">{{ groups[key]|length }}</span> <small class="muted">{{ hint }}</small></h4>
+        <div class="mini-grid">{% for it in groups[key] %}{{ mini_item(it) }}{% endfor %}</div>
+        {% endif %}
+      {% endfor %}
+      {% if not (groups.pending or groups.approved or groups.sold or groups.rejected) %}
+      <div class="empty-state"><div class="es-ico">👚</div><h3>No listings yet</h3><p class="muted">List your first item and start earning points.</p><a class="btn btn-primary" href="{{ url_for('add_item') }}">List an item</a></div>
+      {% endif %}
+    </section>
+
+    <!-- Swaps -->
+    <section class="tab-panel" data-panel="swaps">
+      <h3>Incoming requests <span class="count {{ 'alert' if stats.awaiting }}">{{ incoming_active|length }}</span></h3>
+      {% for t in incoming_active %}{{ tx_card(t, 'in') }}{% else %}<p class="empty">No incoming requests right now.</p>{% endfor %}
+
+      <h3>Outgoing requests <span class="count">{{ outgoing_active|length }}</span></h3>
+      {% for t in outgoing_active %}{{ tx_card(t, 'out') }}{% else %}<p class="empty">You haven't requested anything. <a href="{{ url_for('browse') }}">Browse items</a>.</p>{% endfor %}
+
+      {% if past %}
+      <h3>History</h3>
+      {% for t in past %}{{ tx_card(t, 'out' if t.buyer_id == g.user.id else 'in') }}{% endfor %}
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

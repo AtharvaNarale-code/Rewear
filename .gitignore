@@ -1,0 +1,47 @@
+# =========================================================================
+# Python & Flask Virtual Environments (Packages)
+# =========================================================================
+.venv/
+venv/
+env/
+ENV/
+lib/
+lib64/
+bin/
+include/
+share/
+pip-delete-this-directory.txt
+
+# Alternative package managers (Poetry, Pipenv, Anaconda)
+.venv
+.poetry/
+.pytest_cache/
+.pypy/
+.conda/
+
+# =========================================================================
+# Python Compiled Bytecode & Caching
+# =========================================================================
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# =========================================================================
+# Environment Variables, Tokens & Secrets (Flask configurations)
+# =========================================================================
+.env
+.flaskenv
+instance/
+*.secret
+
+# =========================================================================
+# Operating System & IDE Clutter
+# =========================================================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+# Executable files
+*.exe

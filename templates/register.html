@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Join ReWear{% endblock %}
+{% block content %}
+<div class="container auth">
+  <div class="card auth-card">
+    <h1>Join ReWear</h1>
+    <p class="muted">Create a free account and get <strong>🪙 50 points</strong> to start swapping.</p>
+    <form method="post" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="field"><span>Full name</span><input type="text" name="name" value="{{ form.get('name', '') }}" required autofocus autocomplete="name"></label>
+      <label class="field"><span>Email</span><input type="email" name="email" value="{{ form.get('email', '') }}" required autocomplete="email"></label>
+      <label class="field"><span>Password <small>(min 6 characters)</small></span><input type="password" name="password" required minlength="6" autocomplete="new-password"></label>
+      <button class="btn btn-primary btn-lg btn-block" type="submit">Create account</button>
+    </form>
+    <p class="auth-alt">Already a member? <a href="{{ url_for('login') }}">Log in</a></p>
+  </div>
+</div>
+{% endblock %}

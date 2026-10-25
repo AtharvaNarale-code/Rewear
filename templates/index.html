@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Swap. Wear. Repeat.{% endblock %}
+{% block content %}
+
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="hero-copy">
+      <span class="eyebrow">Community clothing exchange</span>
+      <h1>Swap what you've outgrown.<br><em>Wear something new.</em></h1>
+      <p class="lead">List the clothes you no longer wear, earn points when someone redeems them, and spend those points on pieces you'll actually love — or swap directly, item for item.</p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="{{ url_for('browse') if g.user else url_for('register') }}">Start Swapping</a>
+        <a class="btn btn-outline btn-lg" href="{{ url_for('browse') }}">Browse Items</a>
+        <a class="btn btn-ghost btn-lg" href="{{ url_for('add_item') }}">+ List an Item</a>
+      </div>
+      <ul class="hero-stats">
+        <li><strong>{{ stats['items'] }}</strong> items available</li>
+        <li><strong>{{ stats['members'] }}</strong> members</li>
+        <li><strong>{{ stats['swaps'] }}</strong> exchanges completed</li>
+      </ul>
+    </div>
+    <div class="hero-art" aria-hidden="true">
+      {% for it in featured[:3] %}
+      <div class="hero-tile t{{ loop.index }}"><img src="{{ it.image }}" alt="" onerror="this.onerror=null;this.src='{{ it.fallback_image }}'"></div>
+      {% endfor %}
+      <div class="hero-badge">🪙 50 pts<br><small>welcome bonus</small></div>
+    </div>
+  </div>
+</section>
+
+<section class="benefits">
+  <div class="container benefits-grid">
+    <div class="benefit"><span class="b-ico">♻️</span><div><h3>Zero Textile Waste</h3><p>Every piece gets a second, third, fourth life.</p></div></div>
+    <div class="benefit"><span class="b-ico">🪙</span><div><h3>Point Economy</h3><p>Earn points by sharing. Spend them on what you need.</p></div></div>
+    <div class="benefit"><span class="b-ico">🔁</span><div><h3>Direct Swaps</h3><p>Prefer item-for-item? Offer one of yours instead.</p></div></div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <div>
+        <h2>Featured finds</h2>
+        <p class="muted">Freshly approved by our team.</p>
+      </div>
+      <div class="carousel-ctrl">
+        <button type="button" class="icon-btn" data-carousel-prev aria-label="Previous">‹</button>
+        <button type="button" class="icon-btn" data-carousel-next aria-label="Next">›</button>
+      </div>
+    </div>
+    {% if featured %}
+    <div class="carousel" data-carousel>
+      {% for item in featured %}{% include "_item_card.html" %}{% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">No items yet — be the first to <a href="{{ url_for('add_item') }}">list one</a>.</p>
+    {% endif %}
+    <div class="center"><a class="btn btn-outline" href="{{ url_for('browse') }}">View all items →</a></div>
+  </div>
+</section>
+
+<section class="section section-tint">
+  <div class="container">
+    <h2 class="center">Shop by category</h2>
+    <div class="cat-grid">
+      {% for cat in nav_categories %}
+      <a class="cat-tile cat-{{ cat.name|lower }}" href="{{ url_for('browse', gender=cat.name) }}">
+        <span>{{ cat.name }}</span>
+        <small>Upperwear · Lowerwear · Footwear · Accessories</small>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2 class="center">How ReWear works</h2>
+    <ol class="steps">
+      <li><span class="step-n">1</span><h3>List</h3><p>Upload a photo link and details. Our admins check each listing before it goes live.</p></li>
+      <li><span class="step-n">2</span><h3>Earn &amp; swap</h3><p>Get points when your item is redeemed, or propose a direct swap with another member.</p></li>
+      <li><span class="step-n">3</span><h3>Wear</h3><p>Confirm the exchange and enjoy something new to you — at no cost to the planet.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section class="cta-band">
+  <div class="container">
+    <h2>Ready to refresh your wardrobe?</h2>
+    <p>Join free and start with 50 points on us.</p>
+    <a class="btn btn-light btn-lg" href="{{ url_for('register') if not g.user else url_for('add_item') }}">{{ 'Join ReWear' if not g.user else 'List an item' }}</a>
+  </div>
+</section>
+{% endblock %}

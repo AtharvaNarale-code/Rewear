@@ -1,0 +1,16 @@
+<article class="card item-card">
+  <a class="card-media" href="{{ url_for('item_detail', item_id=item.id) }}" aria-label="{{ item.title }}">
+    <img src="{{ item.image }}" alt="{{ item.title }}" loading="lazy"
+         onerror="this.onerror=null;this.src='{{ item.fallback_image }}'">
+    <span class="badge cond cond-{{ item.condition|lower|replace(' ', '-') }}">{{ item.condition }}</span>
+    <span class="badge size">{{ item.size }}</span>
+  </a>
+  <div class="card-body">
+    <div class="card-cat">{{ item.gender_category }} · {{ item.clothing_type }}</div>
+    <h3 class="card-title"><a href="{{ url_for('item_detail', item_id=item.id) }}">{{ item.title }}</a></h3>
+    <div class="card-foot">
+      <span class="price">🪙 {{ item.point_value }} <small>Pts</small></span>
+      <span class="owner" title="Listed by {{ item.uploader.name }}">{{ item.uploader.name.split()[0] }}</span>
+    </div>
+  </div>
+</article>

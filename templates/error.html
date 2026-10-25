@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ name }}{% endblock %}
+{% block content %}
+<div class="container auth">
+  <div class="empty-state">
+    <div class="es-ico">🧵</div>
+    <h1>{{ code }} · {{ name }}</h1>
+    <p class="muted">{{ message }}</p>
+    <a class="btn btn-primary" href="{{ url_for('index') }}">Back to ReWear</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}Swap. Wear. Repeat.{% endblock %} · ReWear</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="announce">♻️ Every swap keeps clothes out of landfill — new members get {{ 50 }} free points 🪙</div>
+
+  <header class="site-header">
+    <div class="container nav">
+      <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="primary-nav">
+        <span></span><span></span><span></span>
+      </button>
+      <a class="logo" href="{{ url_for('index') }}" aria-label="ReWear home">Re<span>Wear</span></a>
+
+      <nav class="primary-nav" id="primary-nav" aria-label="Primary">
+        <ul>
+          {% for cat in nav_categories %}
+          <li class="has-dd">
+            <a class="dd-trigger" href="{{ url_for('browse', gender=cat.name) }}" aria-haspopup="true">
+              {{ cat.name }}
+              <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            </a>
+            <div class="dd-menu">
+              {% for sub in cat.subs %}
+              <a href="{{ url_for('browse', gender=cat.name, type=sub) }}">{{ sub }}</a>
+              {% endfor %}
+              <a class="dd-all" href="{{ url_for('browse', gender=cat.name) }}">Shop all {{ cat.name }} →</a>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </nav>
+
+      <form class="search" action="{{ url_for('browse') }}" method="get" role="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Search titles or tags…" aria-label="Search items">
+      </form>
+
+      <div class="nav-actions">
+        <a class="btn btn-primary btn-sm btn-list" href="{{ url_for('add_item') }}" title="List an item">
+          <span class="plus">+</span><span class="lbl">List an Item</span>
+        </a>
+        {% if g.user %}
+        <div class="profile-dd" data-dropdown>
+          <button class="profile-btn" type="button" aria-haspopup="true" aria-expanded="false">
+            <span class="points-pill" id="points-pill">🪙 {{ g.user.points_balance }} Pts</span>
+            <span class="avatar">{{ g.user.initial }}</span>
+          </button>
+          <div class="dropdown-panel">
+            <div class="dp-head">
+              <strong>{{ g.user.name }}</strong>
+              <small>{{ g.user.email }}</small>
+            </div>
+            <a href="{{ url_for('dashboard') }}">My Dashboard</a>
+            <a href="{{ url_for('dashboard', tab='items') }}">My Listed Items</a>
+            <a href="{{ url_for('dashboard', tab='swaps') }}">Swaps &amp; Redemptions</a>
+            {% if g.user.is_admin %}<a href="{{ url_for('admin') }}">Admin Panel</a>{% endif %}
+            <form method="post" action="{{ url_for('logout') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="linklike">Log out</button>
+            </form>
+          </div>
+        </div>
+        {% else %}
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('login') }}">Log in</a>
+        <a class="btn btn-outline btn-sm hide-sm" href="{{ url_for('register') }}">Sign up</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="points-bar">
+      <div class="container">
+        <span class="pb-label">Shop by points</span>
+        {% for key, label in point_ranges.items() %}
+        <a class="pill {{ 'active' if request.endpoint == 'browse' and request.args.get('points') == key }}"
+           href="{{ url_for('browse', points=key) }}">🪙 {{ label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="container flash-wrap">
+    {% for cat, msg in messages %}
+    <div class="flash flash-{{ cat }}" role="status">{{ msg }}<button type="button" class="flash-x" aria-label="Dismiss">×</button></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <main>{% block content %}{% endblock %}</main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div>
+        <a class="logo logo-light" href="{{ url_for('index') }}">Re<span>Wear</span></a>
+        <p>A community clothing exchange. List what you've outgrown, earn points, and wear something new — without buying new.</p>
+      </div>
+      <div>
+        <h4>Shop</h4>
+        <a href="{{ url_for('browse', gender='Men') }}">Men</a>
+        <a href="{{ url_for('browse', gender='Women') }}">Women</a>
+        <a href="{{ url_for('browse', gender='Kids') }}">Kids</a>
+      </div>
+      <div>
+        <h4>Community</h4>
+        <a href="{{ url_for('add_item') }}">List an item</a>
+        <a href="{{ url_for('dashboard') }}">My dashboard</a>
+        <a href="{{ url_for('register') }}">Join ReWear</a>
+      </div>
+    </div>
+    <div class="container footer-base">© ReWear prototype · Wear it again ♻️</div>
+  </footer>
+
+  <div class="toast-region" id="toast-region" aria-live="polite"></div>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
